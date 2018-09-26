@@ -20,7 +20,7 @@ LOGGER = singer.get_logger()
 
 MIN_RETRY_INTERVAL = 2 # 10 seconds
 MAX_RETRY_INTERVAL = 300 # 5 minutes
-MAX_RETRY_ELAPSED_TIME = 1800 # 30 minutes
+MAX_RETRY_ELAPSED_TIME = 3600 # 1 hour
 CHUNK_SIZE = 16 * 1024 * 1024 # 16 MB
 
 class StreamFunc(object):
@@ -63,7 +63,10 @@ def transform_field(dfa_type, value):
     if dfa_type == 'double':
         return float(value)
     if dfa_type == 'long':
-        return int(value)
+        try:
+            return int(value)
+        except:
+            return None
     if dfa_type == 'boolean':
         value = value.lower().strip()
         return (
@@ -89,7 +92,7 @@ def process_file(service, fieldmap, report_config, file_id, report_time):
 
     report_id_int = int(report_id)
 
-    def test_transform(line):
+    def line_transform(line):
         if not line_state['past_headers'] and not line_state['headers_line'] and line == 'Report Fields':
             line_state['headers_line'] = True
             return
@@ -115,7 +118,7 @@ def process_file(service, fieldmap, report_config, file_id, report_time):
             singer.write_record(stream_name, obj, stream_alias=stream_alias)
             line_state['count'] += 1
     
-    stream = StreamFunc(test_transform)
+    stream = StreamFunc(line_transform)
     downloader = http.MediaIoBaseDownload(stream,
                                           request,
                                           chunksize=CHUNK_SIZE)
